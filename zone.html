@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="id">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Talent Hub</title>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .card-hover {
+      transition: transform 0.2s ease;
+    }
+
+    .card-hover:active {
+      transform: scale(0.98);
+    }
+
+    .nav-btn {
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:active {
+      transform: scale(0.9);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-primary:active {
+      transform: scale(0.95);
+    }
+
+    .scroll-content {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .scroll-content::-webkit-scrollbar {
+      width: 0;
+      display: none;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease;
+    }
+
+    .modal-slide {
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
+ </head>
+ <body class="w-full">
+  <div id="app" class="w-full h-full"></div>
+  <script>
+    const defaultConfig = {
+      background_color: "#f5f7fa",
+      surface_color: "#ffffff",
+      text_color: "#1a202c",
+      primary_action_color: "#667eea",
+      secondary_action_color: "#764ba2",
+      font_family: "Inter",
+      font_size: 16,
+      app_title: "Zone of Talent",
+      tagline: "Discover Amazing Talents"
+    };
+
+    let allData = [];
+    let currentUser = null;
+    let currentPage = 'home';
+    let isLoading = false;
+
+    const categories = [
+      { id: 'menari', name: 'Dance', icon: '💃', color: '#f093fb' },
+      { id: 'menggambar', name: 'Art', icon: '🎨', color: '#fda085' },
+      { id: 'musik', name: 'Music', icon: '🎵', color: '#a18cd1' },
+      { id: 'menulis', name: 'Writing', icon: '✍️', color: '#4facfe' },
+      { id: 'fotografi', name: 'Photo', icon: '📸', color: '#43e97b' },
+      { id: 'lainnya', name: 'Other', icon: '✨', color: '#fa709a' }
+    ];
+
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    function getUsers() {
+      return allData.filter(d => d.type === 'user');
+    }
+
+    function getWorks() {
+      return allData.filter(d => d.type === 'work');
+    }
+
+    function renderApp() {
+      if (!currentUser) {
+        renderAuthPage();
+      } else {
+        switch(currentPage) {
+          case 'home': renderHomePage(); break;
+          case 'explore': renderExplorePage(); break;
+          case 'inbox': renderInboxPage(); break;
+          case 'profile': renderProfilePage(); break;
+        }
+      }
+    }
+
+    function renderAuthPage() {
+      const config = window.elementSdk?.config || defaultConfig;
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const customFont = config.font_family || defaultConfig.font_family;
+
+      document.getElementById('app').innerHTML = `
+        <div style="width: 100%; height: 100%; background: ${config.background_color}; font-family: ${customFont}, sans-serif; display: flex; align-items: center; justify-content: center; padding: ${baseSize * 1.5}px;">
+          <div class="fade-in" style="width: 100%; max-width: 400px; background: ${config.surface_color}; padding: ${baseSize * 2}px; border-radius: ${baseSize * 1.5}px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+            
+            <div style="text-align: center; margin-bottom: ${baseSize * 2}px;">
+              <h1 class="gradient-text" style="font-size: ${baseSize * 2.5}px; font-weight: 900; margin-bottom: ${baseSize * 0.5}px;">
+                ${config.app_title}
+              </h1>
+              <p style="font-size: ${baseSize}px; color: #718096;">
+                ${config.tagline}
+              </p>
+            </div>
+
+            <div id="authToggle" style="display: flex; gap: ${baseSize * 0.5}px; margin-bottom: ${baseSize * 2}px; background: ${config.background_color}; padding: ${baseSize * 0.25}px; border-radius: ${baseSize * 0.75}px;">
+              <button id="loginTab" style="flex: 1; padding: ${baseSize * 0.75}px; border: none; border-radius: ${baseSize * 0.5}px; font-size: ${baseSize}px; font-weight: 600; cursor: pointer; background: ${config.surface_color}; color: ${config.text_color}; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                Login
+              </button>
+              <button id="registerTab" style="flex: 1; padding: ${baseSize * 0.75}px; border: none; border-radius: ${baseSize * 0.5}px; font-size: ${baseSize}px; font-weight: 600; cursor: pointer; background: transparent; color: #718096;">
+                Register
+              </button>
+            </div>
+
+            <form id="loginForm" style="display: block;">
+              <div style="margin-bottom: ${baseSize * 1.25}px;">
+                <label for="loginUsername" style="display: block; font-size: ${baseSize * 0.875}px; font-weight: 600; margin-bottom: ${baseSize * 0.5}px; color: ${config.text_color};">Username</label>
+                <input type="text" id="loginUsername" required style="width: 100%; padding: ${baseSize}px; border: 2px solid #e2e8f0; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize}px; background: ${config.surface_color}; color: ${config.text_color};" placeholder="username">
+              </div>
+              <div style="margin-bottom: ${baseSize * 1.5}px;">
+                <label for="loginPassword" style="display: block; font-size: ${baseSize * 0.875}px; font-weight: 600; margin-bottom: ${baseSize * 0.5}px; color: ${config.text_color};">Password</label>
+                <input type="password" id="loginPassword" required style="width: 100%; padding: ${baseSize}px; border: 2px solid #e2e8f0; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize}px; background: ${config.surface_color}; color: ${config.text_color};" placeholder="••••••">
+              </div>
+              <button type="submit" class="btn-primary" style="width: 100%; padding: ${baseSize * 1.25}px; border: none; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize * 1.125}px; font-weight: 700; color: white; cursor: pointer; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                Login
+              </button>
+            </form>
+
+            <form id="registerForm" style="display: none;">
+              <div style="margin-bottom: ${baseSize * 1.25}px;">
+                <label for="registerEmail" style="display: block; font-size: ${baseSize * 0.875}px; font-weight: 600; margin-bottom: ${baseSize * 0.5}px; color: ${config.text_color};">Email</label>
+                <input type="email" id="registerEmail" required style="width: 100%; padding: ${baseSize}px; border: 2px solid #e2e8f0; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize}px; background: ${config.surface_color}; color: ${config.text_color};" placeholder="email@example.com">
+              </div>
+              <div style="margin-bottom: ${baseSize * 1.25}px;">
+                <label for="registerUsername" style="display: block; font-size: ${baseSize * 0.875}px; font-weight: 600; margin-bottom: ${baseSize * 0.5}px; color: ${config.text_color};">Username</label>
+                <input type="text" id="registerUsername" required style="width: 100%; padding: ${baseSize}px; border: 2px solid #e2e8f0; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize}px; background: ${config.surface_color}; color: ${config.text_color};" placeholder="username">
+              </div>
+              <div style="margin-bottom: ${baseSize * 1.5}px;">
+                <label for="registerPassword" style="display: block; font-size: ${baseSize * 0.875}px; font-weight: 600; margin-bottom: ${baseSize * 0.5}px; color: ${config.text_color};">Password</label>
+                <input type="password" id="registerPassword" required style="width: 100%; padding: ${baseSize}px; border: 2px solid #e2e8f0; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize}px; background: ${config.surface_color}; color: ${config.text_color};" placeholder="Min 6 karakter">
+              </div>
+              <button type="submit" class="btn-primary" style="width: 100%; padding: ${baseSize * 1.25}px; border: none; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize * 1.125}px; font-weight: 700; color: white; cursor: pointer; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                Register
+              </button>
+            </form>
+
+          </div>
+        </div>
+      `;
+
+      attachAuthListeners();
+    }
+
+    function attachAuthListeners() {
+      const loginTab = document.getElementById('loginTab');
+      const registerTab = document.getElementById('registerTab');
+      const loginForm = document.getElementById('loginForm');
+      const registerForm = document.getElementById('registerForm');
+
+      loginTab.addEventListener('click', () => {
+        loginForm.style.display = 'block';
+        registerForm.style.display = 'none';
+        loginTab.style.background = defaultConfig.surface_color;
+        loginTab.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+        loginTab.style.color = defaultConfig.text_color;
+        registerTab.style.background = 'transparent';
+        registerTab.style.boxShadow = 'none';
+        registerTab.style.color = '#718096';
+      });
+
+      registerTab.addEventListener('click', () => {
+        loginForm.style.display = 'none';
+        registerForm.style.display = 'block';
+        registerTab.style.background = defaultConfig.surface_color;
+        registerTab.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+        registerTab.style.color = defaultConfig.text_color;
+        loginTab.style.background = 'transparent';
+        loginTab.style.boxShadow = 'none';
+        loginTab.style.color = '#718096';
+      });
+
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (isLoading) return;
+
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+
+        const user = getUsers().find(u => u.username === username && u.password === password);
+
+        if (user) {
+          currentUser = user;
+          currentPage = 'home';
+          showToast('Login berhasil! 🎉');
+          renderApp();
+        } else {
+          showToast('Username atau password salah!');
+        }
+      });
+
+      registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (isLoading) return;
+
+        const email = document.getElementById('registerEmail').value;
+        const username = document.getElementById('registerUsername').value;
+        const password = document.getElementById('registerPassword').value;
+
+        if (password.length < 6) {
+          showToast('Password minimal 6 karakter!');
+          return;
+        }
+
+        if (getUsers().find(u => u.username === username)) {
+          showToast('Username sudah digunakan!');
+          return;
+        }
+
+        if (allData.length >= 999) {
+          showToast('Database penuh! Limit 999 data.');
+          return;
+        }
+
+        isLoading = true;
+        const newUser = {
+          id: generateId(),
+          type: 'user',
+          email,
+          username,
+          password,
+          bio: '',
+          quiz_result: '',
+          created_at: new Date().toISOString()
+        };
+
+        const result = await window.dataSdk.create(newUser);
+        isLoading = false;
+
+        if (result.isOk) {
+          showToast('Registrasi berhasil! Silakan login 🎉');
+          loginTab.click();
+          document.getElementById('loginUsername').value = username;
+        } else {
+          showToast('Gagal mendaftar. Coba lagi!');
+        }
+      });
+    }
+
+    function renderHomePage() {
+      const config = window.elementSdk?.config || defaultConfig;
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const customFont = config.font_family || defaultConfig.font_family;
+      
+      const works = getWorks();
+
+      document.getElementById('app').innerHTML = `
+        <div style="width: 100%; height: 100%; background: ${config.background_color}; font-family: ${customFont}, sans-serif; display: flex; flex-direction: column;">
+          
+          <!-- Header -->
+          <header style="padding: ${baseSize * 1.5}px; background: ${config.surface_color}; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
+            <h1 class="gradient-text" style="font-size: ${baseSize * 2}px; font-weight: 900;">
+              ${config.app_title}
+            </h1>
+          </header>
+
+          <!-- Content -->
+          <main class="scroll-content" style="flex: 1; padding: ${baseSize}px; padding-bottom: 80px;">
+            ${works.length === 0 ? `
+              <div class="fade-in" style="text-align: center; padding: ${baseSize * 4}px ${baseSize}px;">
+                <div style="font-size: ${baseSize * 4}px; margin-bottom: ${baseSize}px;">📱</div>
+                <h3 style="font-size: ${baseSize * 1.25}px; font-weight: 700; color: ${config.text_color}; margin-bottom: ${baseSize * 0.5}px;">
+                  Belum ada konten
+                </h3>
+                <p style="font-size: ${baseSize}px; color: #718096;">
+                  Mulai upload karya pertamamu!
+                </p>
+              </div>
+            ` : `
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: ${baseSize}px;">
+                ${works.map(work => {
+                  const category = categories.find(c => c.id === work.talent_type);
+                  return `
+                    <div class="card-hover" style="background: ${config.surface_color}; border-radius: ${baseSize}px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+                      <div style="width: 100%; aspect-ratio: 1; background: ${category.color}; display: flex; align-items: center; justify-content: center; font-size: ${baseSize * 3}px;">
+                        ${category.icon}
+                      </div>
+                      <div style="padding: ${baseSize}px;">
+                        <h4 style="font-size: ${baseSize}px; font-weight: 600; color: ${config.text_color}; margin-bottom: ${baseSize * 0.5}px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                          ${work.title}
+                        </h4>
+                        <button class="like-btn" data-id="${work.id}" style="background: none; border: none; cursor: pointer; font-size: ${baseSize * 0.875}px; color: #718096; display: flex; align-items: center; gap: ${baseSize * 0.25}px;">
+                          <span>❤️</span>
+                          <span>${work.likes || 0}</span>
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </main>
+
+          ${renderBottomNav(baseSize, config)}
+          ${renderUploadButton(baseSize, config)}
+        </div>
+
+        ${renderUploadModal(baseSize, config, customFont)}
+      `;
+
+      attachHomeListeners();
+    }
+
+    function renderExplorePage() {
+      const config = window.elementSdk?.config || defaultConfig;
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const customFont = config.font_family || defaultConfig.font_family;
+      
+      const works = getWorks();
+
+      document.getElementById('app').innerHTML = `
+        <div style="width: 100%; height: 100%; background: ${config.background_color}; font-family: ${customFont}, sans-serif; display: flex; flex-direction: column;">
+          
+          <header style="padding: ${baseSize * 1.5}px; background: ${config.surface_color}; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
+            <h1 class="gradient-text" style="font-size: ${baseSize * 2}px; font-weight: 900;">
+              Explore
+            </h1>
+          </header>
+
+          <main class="scroll-content" style="flex: 1; padding: ${baseSize}px; padding-bottom: 80px;">
+            ${works.length === 0 ? `
+              <div class="fade-in" style="text-align: center; padding: ${baseSize * 4}px ${baseSize}px;">
+                <div style="font-size: ${baseSize * 4}px; margin-bottom: ${baseSize}px;">🔍</div>
+                <h3 style="font-size: ${baseSize * 1.25}px; font-weight: 700; color: ${config.text_color}; margin-bottom: ${baseSize * 0.5}px;">
+                  Belum ada karya
+                </h3>
+              </div>
+            ` : `
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: ${baseSize}px;">
+                ${works.map(work => {
+                  const category = categories.find(c => c.id === work.talent_type);
+                  const author = getUsers().find(u => u.id === work.user_id);
+                  return `
+                    <div class="card-hover" style="background: ${config.surface_color}; border-radius: ${baseSize}px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+                      <div style="width: 100%; aspect-ratio: 1; background: ${category.color}; display: flex; align-items: center; justify-content: center; font-size: ${baseSize * 3}px;">
+                        ${category.icon}
+                      </div>
+                      <div style="padding: ${baseSize}px;">
+                        <h4 style="font-size: ${baseSize}px; font-weight: 600; color: ${config.text_color}; margin-bottom: ${baseSize * 0.25}px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                          ${work.title}
+                        </h4>
+                        <p style="font-size: ${baseSize * 0.875}px; color: #718096; margin-bottom: ${baseSize * 0.5}px;">
+                          @${author?.username || 'unknown'}
+                        </p>
+                        <button class="like-btn" data-id="${work.id}" style="background: none; border: none; cursor: pointer; font-size: ${baseSize * 0.875}px; color: #718096; display: flex; align-items: center; gap: ${baseSize * 0.25}px;">
+                          <span>❤️</span>
+                          <span>${work.likes || 0}</span>
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </main>
+
+          ${renderBottomNav(baseSize, config)}
+          ${renderUploadButton(baseSize, config)}
+        </div>
+
+        ${renderUploadModal(baseSize, config, customFont)}
+      `;
+
+      attachExploreListeners();
+    }
+
+    function renderInboxPage() {
+      const config = window.elementSdk?.config || defaultConfig;
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const customFont = config.font_family || defaultConfig.font_family;
+
+      document.getElementById('app').innerHTML = `
+        <div style="width: 100%; height: 100%; background: ${config.background_color}; font-family: ${customFont}, sans-serif; display: flex; flex-direction: column;">
+          
+          <header style="padding: ${baseSize * 1.5}px; background: ${config.surface_color}; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
+            <h1 class="gradient-text" style="font-size: ${baseSize * 2}px; font-weight: 900;">
+              Inbox
+            </h1>
+          </header>
+
+          <main class="scroll-content" style="flex: 1; padding: ${baseSize}px; padding-bottom: 80px;">
+            <div class="fade-in" style="text-align: center; padding: ${baseSize * 4}px ${baseSize}px;">
+              <div style="font-size: ${baseSize * 4}px; margin-bottom: ${baseSize}px;">💬</div>
+              <h3 style="font-size: ${baseSize * 1.25}px; font-weight: 700; color: ${config.text_color}; margin-bottom: ${baseSize * 0.5}px;">
+                Belum ada pesan
+              </h3>
+              <p style="font-size: ${baseSize}px; color: #718096;">
+                Pesan akan muncul di sini
+              </p>
+            </div>
+          </main>
+
+          ${renderBottomNav(baseSize, config)}
+        </div>
+      `;
+
+      attachInboxListeners();
+    }
+
+    function renderProfilePage() {
+      const config = window.elementSdk?.config || defaultConfig;
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const customFont = config.font_family || defaultConfig.font_family;
+
+      const userWorks = getWorks().filter(w => w.user_id === currentUser.id);
+      const totalLikes = userWorks.reduce((sum, w) => sum + (w.likes || 0), 0);
+
+      document.getElementById('app').innerHTML = `
+        <div style="width: 100%; height: 100%; background: ${config.background_color}; font-family: ${customFont}, sans-serif; display: flex; flex-direction: column;">
+          
+          <header style="padding: ${baseSize * 1.5}px; background: ${config.surface_color}; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;">
+            <h1 class="gradient-text" style="font-size: ${baseSize * 2}px; font-weight: 900;">
+              Profile
+            </h1>
+            <button id="logoutBtn" style="padding: ${baseSize * 0.75}px ${baseSize * 1.25}px; border-radius: ${baseSize * 0.5}px; border: 2px solid #e2e8f0; background: ${config.surface_color}; cursor: pointer; font-size: ${baseSize * 0.875}px; font-weight: 600; color: ${config.text_color};">
+              Logout
+            </button>
+          </header>
+
+          <main class="scroll-content" style="flex: 1; padding-bottom: 80px;">
+            
+            <div style="padding: ${baseSize * 2}px; text-align: center; background: ${config.surface_color}; border-bottom: 1px solid #e2e8f0;">
+              <div style="width: ${baseSize * 5}px; height: ${baseSize * 5}px; border-radius: 50%; background: linear-gradient(135deg, ${config.primary_action_color}, ${config.secondary_action_color}); margin: 0 auto ${baseSize}px; display: flex; align-items: center; justify-content: center; font-size: ${baseSize * 2.5}px; color: white; font-weight: 800;">
+                ${currentUser.username.charAt(0).toUpperCase()}
+              </div>
+              
+              <h2 style="font-size: ${baseSize * 1.5}px; font-weight: 800; color: ${config.text_color}; margin-bottom: ${baseSize * 0.25}px;">
+                @${currentUser.username}
+              </h2>
+              <p style="font-size: ${baseSize * 0.875}px; color: #718096; margin-bottom: ${baseSize * 1.5}px;">
+                ${currentUser.email}
+              </p>
+
+              <div style="display: flex; justify-content: center; gap: ${baseSize * 2}px;">
+                <div>
+                  <div class="gradient-text" style="font-size: ${baseSize * 1.5}px; font-weight: 800;">
+                    ${userWorks.length}
+                  </div>
+                  <div style="font-size: ${baseSize * 0.875}px; color: #718096;">Karya</div>
+                </div>
+                <div>
+                  <div class="gradient-text" style="font-size: ${baseSize * 1.5}px; font-weight: 800;">
+                    ${totalLikes}
+                  </div>
+                  <div style="font-size: ${baseSize * 0.875}px; color: #718096;">Likes</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="padding: ${baseSize}px;">
+              <h3 style="font-size: ${baseSize * 1.125}px; font-weight: 700; color: ${config.text_color}; margin-bottom: ${baseSize}px;">
+                Karya Saya
+              </h3>
+              
+              ${userWorks.length === 0 ? `
+                <div class="fade-in" style="text-align: center; padding: ${baseSize * 3}px ${baseSize}px;">
+                  <div style="font-size: ${baseSize * 4}px; margin-bottom: ${baseSize}px;">📦</div>
+                  <p style="font-size: ${baseSize}px; color: #718096;">
+                    Belum ada karya
+                  </p>
+                </div>
+              ` : `
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: ${baseSize}px;">
+                  ${userWorks.map(work => {
+                    const category = categories.find(c => c.id === work.talent_type);
+                    return `
+                      <div class="card-hover" style="background: ${config.surface_color}; border-radius: ${baseSize}px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08); position: relative;">
+                        <div style="width: 100%; aspect-ratio: 1; background: ${category.color}; display: flex; align-items: center; justify-content: center; font-size: ${baseSize * 3}px; position: relative;">
+                          ${category.icon}
+                          <button class="delete-work-btn" data-id="${work.id}" style="position: absolute; top: ${baseSize * 0.5}px; right: ${baseSize * 0.5}px; background: rgba(0,0,0,0.6); color: white; border: none; width: ${baseSize * 2}px; height: ${baseSize * 2}px; border-radius: 50%; cursor: pointer; font-size: ${baseSize}px; font-weight: 700;">
+                            ×
+                          </button>
+                        </div>
+                        <div style="padding: ${baseSize}px;">
+                          <h4 style="font-size: ${baseSize}px; font-weight: 600; color: ${config.text_color}; margin-bottom: ${baseSize * 0.5}px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            ${work.title}
+                          </h4>
+                          <div style="font-size: ${baseSize * 0.875}px; color: #718096;">
+                            ❤️ ${work.likes || 0}
+                          </div>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              `}
+            </div>
+          </main>
+
+          ${renderBottomNav(baseSize, config)}
+        </div>
+      `;
+
+      attachProfileListeners();
+    }
+
+    function renderBottomNav(baseSize, config) {
+      return `
+        <nav style="position: fixed; bottom: 0; left: 0; right: 0; height: 70px; background: ${config.surface_color}; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-around; align-items: center; z-index: 100;">
+          <button class="nav-btn" data-page="home" style="display: flex; flex-direction: column; align-items: center; gap: ${baseSize * 0.25}px; background: none; border: none; cursor: pointer; padding: ${baseSize * 0.5}px ${baseSize}px; border-radius: ${baseSize * 0.5}px;">
+            <span style="font-size: ${baseSize * 1.5}px;">${currentPage === 'home' ? '🏠' : '🏡'}</span>
+            <span style="font-size: ${baseSize * 0.75}px; font-weight: ${currentPage === 'home' ? '700' : '500'}; color: ${currentPage === 'home' ? config.primary_action_color : '#718096'};">Home</span>
+          </button>
+          
+          <button class="nav-btn" data-page="explore" style="display: flex; flex-direction: column; align-items: center; gap: ${baseSize * 0.25}px; background: none; border: none; cursor: pointer; padding: ${baseSize * 0.5}px ${baseSize}px; border-radius: ${baseSize * 0.5}px;">
+            <span style="font-size: ${baseSize * 1.5}px;">🔍</span>
+            <span style="font-size: ${baseSize * 0.75}px; font-weight: ${currentPage === 'explore' ? '700' : '500'}; color: ${currentPage === 'explore' ? config.primary_action_color : '#718096'};">Explore</span>
+          </button>
+          
+          <div style="width: 60px;"></div>
+          
+          <button class="nav-btn" data-page="inbox" style="display: flex; flex-direction: column; align-items: center; gap: ${baseSize * 0.25}px; background: none; border: none; cursor: pointer; padding: ${baseSize * 0.5}px ${baseSize}px; border-radius: ${baseSize * 0.5}px;">
+            <span style="font-size: ${baseSize * 1.5}px;">💬</span>
+            <span style="font-size: ${baseSize * 0.75}px; font-weight: ${currentPage === 'inbox' ? '700' : '500'}; color: ${currentPage === 'inbox' ? config.primary_action_color : '#718096'};">Inbox</span>
+          </button>
+          
+          <button class="nav-btn" data-page="profile" style="display: flex; flex-direction: column; align-items: center; gap: ${baseSize * 0.25}px; background: none; border: none; cursor: pointer; padding: ${baseSize * 0.5}px ${baseSize}px; border-radius: ${baseSize * 0.5}px;">
+            <span style="font-size: ${baseSize * 1.5}px;">👤</span>
+            <span style="font-size: ${baseSize * 0.75}px; font-weight: ${currentPage === 'profile' ? '700' : '500'}; color: ${currentPage === 'profile' ? config.primary_action_color : '#718096'};">Profile</span>
+          </button>
+        </nav>
+      `;
+    }
+
+    function renderUploadButton(baseSize, config) {
+      return `
+        <button id="uploadBtn" class="btn-primary" style="position: fixed; bottom: 80px; right: ${baseSize * 1.5}px; width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer; font-size: ${baseSize * 2}px; color: white; box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); z-index: 50; display: flex; align-items: center; justify-content: center;">
+          +
+        </button>
+      `;
+    }
+
+    function renderUploadModal(baseSize, config, customFont) {
+      return `
+        <div id="uploadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 200; background: rgba(0,0,0,0.5);">
+          <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" id="modalBackdrop"></div>
+          <div class="modal-slide" style="position: absolute; bottom: 0; left: 0; right: 0; background: ${config.surface_color}; border-radius: ${baseSize * 1.5}px ${baseSize * 1.5}px 0 0; padding: ${baseSize * 2}px; max-height: 85%; overflow-y: auto;">
+            
+            <div style="width: 40px; height: 4px; background: #cbd5e0; border-radius: 2px; margin: 0 auto ${baseSize * 1.5}px;"></div>
+            
+            <h2 class="gradient-text" style="font-size: ${baseSize * 1.5}px; font-weight: 800; text-align: center; margin-bottom: ${baseSize * 2}px;">
+              Upload Karya
+            </h2>
+
+            <form id="uploadForm">
+              <label for="talentType" style="display: block; font-size: ${baseSize * 0.875}px; font-weight: 600; margin-bottom: ${baseSize * 0.5}px; color: ${config.text_color};">Kategori</label>
+              <select id="talentType" required style="width: 100%; padding: ${baseSize}px; border: 2px solid #e2e8f0; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize}px; margin-bottom: ${baseSize * 1.25}px; background: ${config.surface_color}; color: ${config.text_color}; font-family: ${customFont}, sans-serif;">
+                ${categories.map(cat => `
+                  <option value="${cat.id}">${cat.icon} ${cat.name}</option>
+                `).join('')}
+              </select>
+              
+              <label for="title" style="display: block; font-size: ${baseSize * 0.875}px; font-weight: 600; margin-bottom: ${baseSize * 0.5}px; color: ${config.text_color};">Judul</label>
+              <input type="text" id="title" required style="width: 100%; padding: ${baseSize}px; border: 2px solid #e2e8f0; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize}px; margin-bottom: ${baseSize * 1.25}px; background: ${config.surface_color}; color: ${config.text_color}; font-family: ${customFont}, sans-serif;" placeholder="Judul karya">
+              
+              <label for="description" style="display: block; font-size: ${baseSize * 0.875}px; font-weight: 600; margin-bottom: ${baseSize * 0.5}px; color: ${config.text_color};">Deskripsi</label>
+              <textarea id="description" required rows="4" style="width: 100%; padding: ${baseSize}px; border: 2px solid #e2e8f0; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize}px; margin-bottom: ${baseSize * 2}px; resize: vertical; background: ${config.surface_color}; color: ${config.text_color}; font-family: ${customFont}, sans-serif;" placeholder="Ceritakan tentang karyamu..."></textarea>
+              
+              <div style="display: flex; gap: ${baseSize}px;">
+                <button type="button" id="cancelUpload" style="flex: 1; background: ${config.background_color}; color: ${config.text_color}; padding: ${baseSize * 1.25}px; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize}px; font-weight: 600; border: none; cursor: pointer; font-family: ${customFont}, sans-serif;">
+                  Batal
+                </button>
+                <button type="submit" class="btn-primary" style="flex: 2; padding: ${baseSize * 1.25}px; border-radius: ${baseSize * 0.75}px; font-size: ${baseSize}px; font-weight: 700; border: none; cursor: pointer; color: white; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); font-family: ${customFont}, sans-serif;">
+                  Upload
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function attachHomeListeners() {
+      attachLikeListeners();
+      attachBottomNavListeners();
+      attachUploadListeners();
+    }
+
+    function attachExploreListeners() {
+      attachLikeListeners();
+      attachBottomNavListeners();
+      attachUploadListeners();
+    }
+
+    function attachInboxListeners() {
+      attachBottomNavListeners();
+    }
+
+    function attachProfileListeners() {
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+          currentUser = null;
+          currentPage = 'home';
+          showToast('Logout berhasil!');
+          renderApp();
+        });
+      }
+
+      document.querySelectorAll('.delete-work-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (isLoading) return;
+
+          const workId = e.currentTarget.dataset.id;
+          const work = getWorks().find(w => w.id === workId);
+          
+          if (work) {
+            const deleteBtn = e.currentTarget;
+            
+            if (deleteBtn.textContent === '×') {
+              deleteBtn.textContent = '✓';
+              deleteBtn.style.background = 'rgba(52, 199, 89, 0.8)';
+              setTimeout(() => {
+                if (deleteBtn.textContent === '✓') {
+                  deleteBtn.textContent = '×';
+                  deleteBtn.style.background = 'rgba(0,0,0,0.6)';
+                }
+              }, 3000);
+            } else {
+              isLoading = true;
+              const result = await window.dataSdk.delete(work);
+              isLoading = false;
+              
+              if (result.isOk) {
+                showToast('Karya berhasil dihapus!');
+              } else {
+                showToast('Gagal menghapus karya!');
+              }
+            }
+          }
+        });
+      });
+
+      attachBottomNavListeners();
+    }
+
+    function attachLikeListeners() {
+      document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (isLoading) return;
+          
+          const workId = e.currentTarget.dataset.id;
+          const work = getWorks().find(w => w.id === workId);
+          
+          if (work) {
+            isLoading = true;
+            const previousLikes = work.likes || 0;
+            work.likes = previousLikes + 1;
+            
+            e.currentTarget.querySelector('span:last-child').textContent = work.likes;
+            
+            const result = await window.dataSdk.update(work);
+            isLoading = false;
+            
+            if (!result.isOk) {
+              work.likes = previousLikes;
+              e.currentTarget.querySelector('span:last-child').textContent = previousLikes;
+              showToast('Gagal memberikan like!');
+            }
+          }
+        });
+      });
+    }
+
+    function attachBottomNavListeners() {
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const page = btn.dataset.page;
+          if (page) {
+            currentPage = page;
+            renderApp();
+          }
+        });
+      });
+    }
+
+    function attachUploadListeners() {
+      const uploadBtn = document.getElementById('uploadBtn');
+      const uploadModal = document.getElementById('uploadModal');
+      const cancelUpload = document.getElementById('cancelUpload');
+      const uploadForm = document.getElementById('uploadForm');
+      const modalBackdrop = document.getElementById('modalBackdrop');
+
+      if (uploadBtn) {
+        uploadBtn.addEventListener('click', () => {
+          if (allData.length >= 999) {
+            showToast('Database penuh! Limit 999 data.');
+            return;
+          }
+          uploadModal.style.display = 'block';
+        });
+      }
+
+      if (cancelUpload) {
+        cancelUpload.addEventListener('click', () => {
+          uploadModal.style.display = 'none';
+          uploadForm.reset();
+        });
+      }
+
+      if (modalBackdrop) {
+        modalBackdrop.addEventListener('click', () => {
+          uploadModal.style.display = 'none';
+          uploadForm.reset();
+        });
+      }
+
+      if (uploadForm) {
+        uploadForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          
+          if (isLoading) return;
+          if (allData.length >= 999) {
+            showToast('Database penuh! Limit 999 data.');
+            return;
+          }
+
+          isLoading = true;
+
+          const newWork = {
+            id: generateId(),
+            type: 'work',
+            user_id: currentUser.id,
+            talent_type: document.getElementById('talentType').value,
+            title: document.getElementById('title').value,
+            description: document.getElementById('description').value,
+            likes: 0,
+            views: 0,
+            created_at: new Date().toISOString()
+          };
+
+          const result = await window.dataSdk.create(newWork);
+          isLoading = false;
+
+          if (result.isOk) {
+            uploadModal.style.display = 'none';
+            uploadForm.reset();
+            showToast('Karya berhasil diupload! 🎉');
+          } else {
+            showToast('Gagal mengupload karya!');
+          }
+        });
+      }
+    }
+
+    function showToast(message) {
+      const config = window.elementSdk?.config || defaultConfig;
+      const baseSize = config.font_size || defaultConfig.font_size;
+      
+      const toast = document.createElement('div');
+      toast.className = 'fade-in';
+      toast.style.cssText = `
+        position: fixed;
+        top: ${baseSize * 2}px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: ${config.text_color};
+        color: white;
+        padding: ${baseSize}px ${baseSize * 1.5}px;
+        border-radius: ${baseSize * 0.75}px;
+        font-size: ${baseSize * 0.875}px;
+        font-weight: 600;
+        z-index: 999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        max-width: 80%;
+        text-align: center;
+      `;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    }
+
+    const dataHandler = {
+      onDataChanged(data) {
+        allData = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        renderApp();
+      }
+    };
+
+    async function onConfigChange(config) {
+      renderApp();
+    }
+
+    async function init() {
+      if (window.dataSdk) {
+        const initResult = await window.dataSdk.init(dataHandler);
+        if (!initResult.isOk) {
+          console.error('Failed to initialize data SDK');
+        }
+      }
+
+      if (window.elementSdk) {
+        window.elementSdk.init({
+          defaultConfig,
+          onConfigChange,
+          mapToCapabilities: (config) => ({
+            recolorables: [
+              {
+                get: () => config.background_color || defaultConfig.background_color,
+                set: (value) => {
+                  config.background_color = value;
+                  window.elementSdk.setConfig({ background_color: value });
+                }
+              },
+              {
+                get: () => config.surface_color || defaultConfig.surface_color,
+                set: (value) => {
+                  config.surface_color = value;
+                  window.elementSdk.setConfig({ surface_color: value });
+                }
+              },
+              {
+                get: () => config.text_color || defaultConfig.text_color,
+                set: (value) => {
+                  config.text_color = value;
+                  window.elementSdk.setConfig({ text_color: value });
+                }
+              },
+              {
+                get: () => config.primary_action_color || defaultConfig.primary_action_color,
+                set: (value) => {
+                  config.primary_action_color = value;
+                  window.elementSdk.setConfig({ primary_action_color: value });
+                }
+              },
+              {
+                get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
+                set: (value) => {
+                  config.secondary_action_color = value;
+                  window.elementSdk.setConfig({ secondary_action_color: value });
+                }
+              }
+            ],
+            borderables: [],
+            fontEditable: {
+              get: () => config.font_family || defaultConfig.font_family,
+              set: (value) => {
+                config.font_family = value;
+                window.elementSdk.setConfig({ font_family: value });
+              }
+            },
+            fontSizeable: {
+              get: () => config.font_size || defaultConfig.font_size,
+              set: (value) => {
+                config.font_size = value;
+                window.elementSdk.setConfig({ font_size: value });
+              }
+            }
+          }),
+          mapToEditPanelValues: (config) => new Map([
+            ["app_title", config.app_title || defaultConfig.app_title],
+            ["tagline", config.tagline || defaultConfig.tagline]
+          ])
+        });
+      }
+
+      renderApp();
+    }
+
+    init();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9a7370b532e54dbc',t:'MTc2NDYwMTA4MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
